@@ -13,13 +13,25 @@ const CameraView = forwardRef(function CameraView({ onCapture }, ref) {
 
   async function startCamera() {
     setError(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Tu navegador no soporta acceso a la cámara. Usa Chrome o Firefox en localhost.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       setCameraOn(true);
-    } catch {
-      setError('No se pudo acceder a la cámara. Verifica los permisos.');
+    } catch (err) {
+      const mensajes = {
+        NotAllowedError: 'Permiso de cámara denegado. Haz clic en el candado de la barra de direcciones y permite la cámara, luego recarga.',
+        NotFoundError: 'No se encontró ninguna cámara conectada.',
+        NotReadableError: 'La cámara está siendo usada por otra aplicación. Ciérrala e intenta de nuevo.',
+        OverconstrainedError: 'La cámara no cumple los requisitos mínimos.',
+      };
+      setError(mensajes[err.name] || `Error (${err.name}): ${err.message}`);
     }
   }
 
