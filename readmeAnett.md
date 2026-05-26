@@ -52,8 +52,8 @@ frontend/
 ```bash
 cd frontend
 cp .env.example .env
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Abre `http://localhost:5173` en el navegador.
