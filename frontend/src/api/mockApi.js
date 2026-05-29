@@ -17,7 +17,18 @@ export async function predict(videoBlob) {
     const form = new FormData();
     form.append('video', videoBlob, 'clip.webm');
     const res = await fetch(`${BASE_URL}/predict`, { method: 'POST', body: form });
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      // El backend FastAPI devuelve { prediccion: { palabra, confianza }, top3, modo, ... }.
+      // El panel espera palabra/confianza a nivel superior → normalizamos.
+      const pred = data.prediccion ?? data;
+      return {
+        palabra: pred.palabra,
+        confianza: pred.confianza,
+        top3: data.top3,
+        mock: data.modo === 'mock',
+      };
+    }
   } catch {
     // backend not available yet — use mock
   }
