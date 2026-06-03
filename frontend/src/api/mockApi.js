@@ -38,18 +38,35 @@ export async function uploadClip(videoBlob, palabra) {
   const form = new FormData();
   form.append('video', videoBlob, 'clip.webm');
   form.append('palabra', palabra);
+  form.append('participante', 'anett');
+  form.append('duracion', '3.0');
+  form.append('fps', '30');
   const res = await fetch(`${BASE_URL}/dataset/upload`, { method: 'POST', body: form });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `Error ${res.status}`);
   }
-  return await res.json();
+  const data = await res.json();
+  // Normaliza respuesta de Rodrigo al formato que usa DatasetCapture
+  return {
+    clip_numero: data.entry?.sample_id ?? '?',
+    total_clips_palabra: data.entry?.split ?? '?',
+    palabra: data.entry?.palabra ?? palabra,
+  };
 }
 
 export async function getDatasetStats() {
   try {
     const res = await fetch(`${BASE_URL}/dataset/stats`);
-    if (res.ok) return await res.json();
+    if (res.ok) {
+      const data = await res.json();
+      // Normaliza respuesta de Rodrigo: { por_clase: [{palabra, total}] }
+      const por_palabra = {};
+      if (data.por_clase) {
+        data.por_clase.forEach(c => { por_palabra[c.palabra] = c.total; });
+      }
+      return { total: data.total_clips ?? 0, por_palabra };
+    }
   } catch { }
   return { total: 0, por_palabra: {} };
 }

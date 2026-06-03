@@ -1,10 +1,52 @@
+# Node / Frontend
 node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/package-lock.json
-.env
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-backend/venv/
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# FastAPI / Uvicorn
+*.log
+
+# Dataset (videos grandes no van al repo, solo el CSV índice)
+dataset/raw/
+dataset/processed/
+
+# HuggingFace cache
+.cache/
+~/.cache/huggingface/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Modelos locales entrenados (pesados – subir a HF Hub)
+backend/models/checkpoints/
+*.bin
+*.safetensors
+*.pt
+*.pth
