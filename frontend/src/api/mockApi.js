@@ -47,26 +47,17 @@ export async function uploadClip(videoBlob, palabra) {
     throw new Error(err.detail || `Error ${res.status}`);
   }
   const data = await res.json();
-  // Normaliza respuesta de Rodrigo al formato que usa DatasetCapture
   return {
-    clip_numero: data.entry?.sample_id ?? '?',
-    total_clips_palabra: data.entry?.split ?? '?',
-    palabra: data.entry?.palabra ?? palabra,
+    clip_numero: data.clip_numero,
+    total_clips_palabra: data.total_clips_palabra,
+    palabra: data.palabra ?? palabra,
   };
 }
 
 export async function getDatasetStats() {
   try {
     const res = await fetch(`${BASE_URL}/dataset/stats`);
-    if (res.ok) {
-      const data = await res.json();
-      // Normaliza respuesta de Rodrigo: { por_clase: [{palabra, total}] }
-      const por_palabra = {};
-      if (data.por_clase) {
-        data.por_clase.forEach(c => { por_palabra[c.palabra] = c.total; });
-      }
-      return { total: data.total_clips ?? 0, por_palabra };
-    }
+    if (res.ok) return await res.json();
   } catch { }
   return { total: 0, por_palabra: {} };
 }
