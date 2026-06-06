@@ -50,3 +50,4 @@ backend/models/checkpoints/
 *.safetensors
 *.pt
 *.pth
+frontend/.vite/
