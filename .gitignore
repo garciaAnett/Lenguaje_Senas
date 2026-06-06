@@ -29,6 +29,7 @@ env/
 # Dataset (videos grandes no van al repo, solo el CSV índice)
 dataset/raw/
 dataset/processed/
+backend/dataset/clips/
 
 # HuggingFace cache
 .cache/

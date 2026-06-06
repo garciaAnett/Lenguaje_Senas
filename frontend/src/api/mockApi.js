@@ -19,12 +19,9 @@ export async function predict(videoBlob) {
     const res = await fetch(`${BASE_URL}/predict`, { method: 'POST', body: form });
     if (res.ok) {
       const data = await res.json();
-      // El backend FastAPI devuelve { prediccion: { palabra, confianza }, top3, modo, ... }.
-      // El panel espera palabra/confianza a nivel superior → normalizamos.
-      const pred = data.prediccion ?? data;
       return {
-        palabra: pred.palabra,
-        confianza: pred.confianza,
+        palabra: data.prediccion.palabra,
+        confianza: data.prediccion.confianza,
         top3: data.top3,
         mock: data.modo === 'mock',
       };
@@ -35,4 +32,32 @@ export async function predict(videoBlob) {
   const word = MOCK_WORDS[Math.floor(Math.random() * MOCK_WORDS.length)];
   const confidence = +(0.65 + Math.random() * 0.30).toFixed(2);
   return { palabra: word, confianza: confidence, mock: true };
+}
+
+export async function uploadClip(videoBlob, palabra) {
+  const form = new FormData();
+  form.append('video', videoBlob, 'clip.webm');
+  form.append('palabra', palabra);
+  form.append('participante', 'anett');
+  form.append('duracion', '3.0');
+  form.append('fps', '30');
+  const res = await fetch(`${BASE_URL}/dataset/upload`, { method: 'POST', body: form });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Error ${res.status}`);
+  }
+  const data = await res.json();
+  return {
+    clip_numero: data.clip_numero,
+    total_clips_palabra: data.total_clips_palabra,
+    palabra: data.palabra ?? palabra,
+  };
+}
+
+export async function getDatasetStats() {
+  try {
+    const res = await fetch(`${BASE_URL}/dataset/stats`);
+    if (res.ok) return await res.json();
+  } catch { }
+  return { total: 0, por_palabra: {} };
 }
