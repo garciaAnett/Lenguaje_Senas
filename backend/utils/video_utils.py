@@ -1,88 +1,81 @@
 """
-Utilidades de video para preprocesamiento de clips.
-
-Sprint 1: solo count_frames_from_bytes (sin dependencia de OpenCV).
-Sprint 2/3: se añaden extract_frames(), resize_frames(), normalize_frames().
+Utilidades de video - Sprint 3: extracción real de frames con PyAV.
 """
 
-import io
 import logging
-import struct
-from typing import Optional
+import os
+import tempfile
+import numpy as np
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+NUM_FRAMES = 16  # VideoMAE estándar
 
-def count_frames_from_bytes(video_bytes: bytes) -> int:
+
+def extract_frames_from_bytes(video_bytes: bytes, num_frames: int = NUM_FRAMES) -> list:
     """
-    Estima el número de frames de un video a partir de sus bytes.
-    Sprint 1: lectura básica sin OpenCV; devuelve 0 si no puede parsear.
-    Sprint 3: reemplazar con extracción real via OpenCV/PyAV.
+    Extrae num_frames uniformemente distribuidos del clip (en bytes).
+    Usa PyAV. Devuelve lista de arrays numpy RGB (H, W, 3).
     """
     try:
-        # Intento rápido: si OpenCV está instalado, usarlo
-        import cv2
-        import numpy as np
+        import av
+    except ImportError:
+        logger.warning("PyAV no instalado; devolviendo frames negros de placeholder.")
+        return [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(num_frames)]
 
-        arr = np.frombuffer(video_bytes, dtype=np.uint8)
-        cap = cv2.VideoCapture()
-        # En memoria con imdecode no aplica; necesitamos un archivo temporal
-        import tempfile, os
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
             tmp.write(video_bytes)
             tmp_path = tmp.name
-        cap = cv2.VideoCapture(tmp_path)
-        n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        cap.release()
-        os.unlink(tmp_path)
-        return max(n, 0)
-    except ImportError:
-        logger.debug("OpenCV no instalado; count_frames devuelve estimación por tamaño.")
-        # Estimación heurística: ~150 KB por segundo a 30fps → ~5 KB/frame
-        estimated = len(video_bytes) // 5000
-        return max(estimated, 0)
+
+        return _decode_and_sample(tmp_path, num_frames)
     except Exception as e:
-        logger.warning(f"count_frames_from_bytes error: {e}")
-        return 0
+        logger.warning(f"extract_frames_from_bytes error: {e}")
+        return [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(num_frames)]
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
-# ── Sprint 3: descomentar cuando OpenCV esté disponible ──────────────────────
-# import cv2
-# import numpy as np
-#
-# def extract_frames(video_bytes: bytes, target_frames: int = 16) -> list:
-#     """
-#     Extrae `target_frames` uniformemente distribuidos del clip.
-#     Devuelve lista de arrays numpy (H, W, C).
-#     """
-#     import tempfile, os
-#     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-#         tmp.write(video_bytes)
-#         tmp_path = tmp.name
-#
-#     cap = cv2.VideoCapture(tmp_path)
-#     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#     indices = np.linspace(0, total - 1, target_frames, dtype=int)
-#
-#     frames = []
-#     for idx in indices:
-#         cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-#         ret, frame = cap.read()
-#         if ret:
-#             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#             frames.append(frame)
-#
-#     cap.release()
-#     os.unlink(tmp_path)
-#     return frames
-#
-#
-# def resize_frames(frames: list, size: tuple = (224, 224)) -> list:
-#     return [cv2.resize(f, size) for f in frames]
-#
-#
-# def normalize_frames(frames: list) -> np.ndarray:
-#     """Normaliza a [0,1] y devuelve shape (T, H, W, C)."""
-#     arr = np.stack(frames).astype(np.float32) / 255.0
-#     return arr
-# ─────────────────────────────────────────────────────────────────────────────
+def extract_frames_from_path(video_path: "str | Path", num_frames: int = NUM_FRAMES) -> list:
+    """Versión path-based, usada en el training script."""
+    try:
+        import av  # noqa: F401
+    except ImportError:
+        return [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(num_frames)]
+
+    try:
+        return _decode_and_sample(str(video_path), num_frames)
+    except Exception as e:
+        logger.warning(f"extract_frames_from_path error ({video_path}): {e}")
+        return [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(num_frames)]
+
+
+def _decode_and_sample(path: str, num_frames: int) -> list:
+    import av
+
+    frames = []
+    container = av.open(path)
+    for frame in container.decode(video=0):
+        frames.append(frame.to_ndarray(format="rgb24"))
+    container.close()
+
+    if not frames:
+        return [np.zeros((224, 224, 3), dtype=np.uint8) for _ in range(num_frames)]
+
+    indices = np.linspace(0, len(frames) - 1, num_frames, dtype=int)
+    return [frames[i] for i in indices]
+
+
+def count_frames_from_bytes(video_bytes: bytes) -> int:
+    """Cuenta frames de un clip dado en bytes. Usa PyAV o estimación heurística."""
+    try:
+        frames = extract_frames_from_bytes(video_bytes, num_frames=9999)
+        return len(frames)
+    except Exception:
+        return len(video_bytes) // 5000
