@@ -25,9 +25,9 @@ app = FastAPI(
     title="Sign Language MVP API",
     description=(
         "API para traducción de lenguaje de señas usando VideoMAE + Hugging Face. "
-        "Sprint 2: gestión del dataset, upload de clips y split train/val/test."
+        "Sprint 3: inferencia real con modelo fine-tuned. APP_MODE=real para activar."
     ),
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -47,10 +47,11 @@ app.include_router(dataset.router)
 
 @app.get("/", tags=["Root"])
 async def root():
+    import os
     return {
         "mensaje": "Sign Language MVP API activa",
         "docs": "/docs",
-        "version": "0.2.0",
-        "sprint": 2,
-        "modo": "mock",
+        "version": "0.3.0",
+        "sprint": 3,
+        "modo": os.getenv("APP_MODE", "mock"),
     }
